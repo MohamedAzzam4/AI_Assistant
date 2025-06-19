@@ -1,7 +1,8 @@
-fastapi==0.111.0 # Or the specific version you installed, e.g., 0.115.13
-uvicorn==0.30.1  # Or the specific version you installed, e.g., 0.34.3
-python-jose[cryptography]==3.3.0 # Or a recent stable version
-PyPDF2==3.0.1   # The library for PDF parsing
-sentence-transformers==2.7.0 # The library for embedding models
-numpy==1.26.4   # For numerical operations on embeddings
-requests==2.32.3 # For making HTTP requests to external APIs (Gemini)
+fastapi
+uvicorn
+python-jose[cryptography]
+PyPDF2
+sentence-transformers
+numpy
+requests
+openpyxl # New: Added for Excel file processing
