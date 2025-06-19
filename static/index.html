@@ -135,7 +135,7 @@
         const authenticatedSections = document.getElementById('authenticated-sections');
         const loginForm = document.getElementById('login-form');
         const usernameInput = document.getElementById('username');
-        const passwordInput = document.getElementById('password');
+        const passwordInput = document.getElementById('password'); // This is the HTML element
         const loginMessage = document.getElementById('login-message');
         const chatMessages = document.getElementById('chat-messages');
         const messageInput = document.getElementById('message-input');
@@ -178,18 +178,16 @@
 
         function updateUIAfterLogin(role) {
             loginSection.classList.add('hidden');
-            authenticatedSections.classList.remove('hidden'); // Show the main container for authenticated users
+            authenticatedSections.classList.remove('hidden');
 
-            // Show Chat tab by default
             showTab('chat-section');
 
-            // Conditionally show Document Management tab button based on role
             if (role === 'department_head' || role === 'general_manager') {
                 documentTabButton.classList.remove('hidden');
             } else {
                 documentTabButton.classList.add('hidden');
             }
-            loginMessage.classList.add('hidden'); // Hide any previous error messages
+            loginMessage.classList.add('hidden');
         }
 
 
@@ -199,14 +197,14 @@
             messageElement.classList.add('flex', 'mb-4', 'max-w-[80%]', 'p-3', 'rounded-lg', 'shadow-sm');
 
             if (sender === 'user') {
-                messageElement.classList.add('bg-blue-100', 'self-end', 'rounded-br-none'); // User messages on the right
+                messageElement.classList.add('bg-blue-100', 'self-end', 'rounded-br-none');
                 messageElement.innerHTML = `<p class="text-gray-800 text-left">${text}</p>`;
-            } else { // AI messages
-                messageElement.classList.add('bg-gray-200', 'self-start', 'rounded-bl-none'); // AI messages on the left
+            } else {
+                messageElement.classList.add('bg-gray-200', 'self-start', 'rounded-bl-none');
                 messageElement.innerHTML = `<p class="text-gray-800 text-left">${text}</p>`;
             }
             chatMessages.prepend(messageElement);
-            chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to the bottom of messages
+            chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
         async function getAiResponse(userMessage) {
@@ -242,7 +240,7 @@
         }
 
         async function uploadDocument() {
-            uploadStatusMessage.classList.add('hidden'); // Hide previous status
+            uploadStatusMessage.classList.add('hidden');
             const file = documentFileInput.files[0];
             const department = documentDepartmentInput.value.trim();
 
@@ -267,12 +265,12 @@
                 uploadStatusMessage.textContent = 'Uploading...';
                 uploadStatusMessage.classList.remove('hidden');
                 uploadStatusMessage.classList.remove('text-green-500', 'text-red-500');
-                uploadStatusMessage.classList.add('text-gray-600'); // Neutral color for pending
+                uploadStatusMessage.classList.add('text-gray-600');
 
                 const response = await fetch(`${API_BASE_URL}/upload-document/`, {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${accessToken}` // Important for authentication
+                        'Authorization': `Bearer ${accessToken}`
                     },
                     body: formData
                 });
@@ -286,25 +284,22 @@
                     uploadStatusMessage.textContent = result.message;
                     uploadStatusMessage.classList.remove('text-gray-600', 'text-red-500');
                     uploadStatusMessage.classList.add('text-green-500');
-                    documentFileInput.value = ''; // Clear file input
-                    documentDepartmentInput.value = ''; // Clear department input
+                    documentFileInput.value = '';
+                    documentDepartmentInput.value = '';
                     console.log("DEBUG_UPLOAD: Upload successful. AccessToken after success:", accessToken ? "Present" : "NULL");
 
-                    // Crucial addition: Clear the login message after successful upload
-                    // If this was somehow causing a re-login state or visual flicker
                     loginMessage.classList.add('hidden');
-                    // No explicit redirect or logout here on success.
                 } else {
                     uploadStatusMessage.textContent = result.detail || 'Upload failed.';
                     uploadStatusMessage.classList.remove('text-gray-600', 'text-green-500');
                     uploadStatusMessage.classList.add('text-red-500');
                     console.error('Upload error:', result);
-                    if (response.status === 403) { // Forbidden
+                    if (response.status === 403) {
                         uploadStatusMessage.textContent += " You don't have permission.";
-                    } else if (response.status === 401) { // Unauthorized
+                    } else if (response.status === 401) {
                         uploadStatusMessage.textContent += " Session expired, logging out...";
                         console.log("DEBUG_UPLOAD: Calling logout due to 401 status.");
-                        logout(); // This is the explicit logout call
+                        logout();
                     }
                     console.log("DEBUG_UPLOAD: AccessToken after failure handler:", accessToken ? "Present" : "NULL");
                 }
@@ -325,7 +320,8 @@
             e.preventDefault();
 
             const username = usernameInput.value.trim();
-            const password = passwordInput.trim(); // Removed .value for consistency with other uses
+            // CORRECTED LINE: Access the .value property before .trim()
+            const password = passwordInput.value.trim();
 
             const formData = new URLSearchParams();
             formData.append('username', username);
