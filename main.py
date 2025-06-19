@@ -18,6 +18,7 @@ from sentence_transformers import SentenceTransformer
 import numpy as np
 import json
 import requests
+import openpyxl # New import for Excel file support
 
 # --- FastAPI Application Setup ---
 app = FastAPI(
@@ -27,12 +28,11 @@ app = FastAPI(
 )
 
 # --- JWT Configuration (for authentication) ---
-# Define this immediately after app initialization to ensure global scope for reloader
 SECRET_KEY = "your-super-secret-jwt-key" # CHANGE THIS IN PRODUCTION!
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token") # Defined here
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 # --- CORS Middleware Configuration ---
 origins = [
@@ -76,7 +76,6 @@ if not GEMINI_API_KEY:
 
 
 # --- Database Setup (SQLite for initial development) ---
-# Corrected path to avoid SyntaxWarning
 DATABASE_URL = "./database.db"
 
 def get_db_connection():
@@ -188,6 +187,31 @@ def extract_text_from_txt(txt_path: str) -> str:
         print(f"Error extracting text from TXT {txt_path}: {e}")
         text = ""
     return text
+
+def extract_text_from_excel(excel_path: str) -> str:
+    """Extracts text content from an Excel (.xlsx) file."""
+    full_text = []
+    try:
+        workbook = openpyxl.load_workbook(excel_path)
+        for sheet_name in workbook.sheetnames:
+            sheet = workbook[sheet_name]
+            full_text.append(f"--- Sheet: {sheet_name} ---")
+            for row in sheet.iter_rows():
+                row_values = []
+                for cell in row:
+                    # Convert value to string, handle None
+                    cell_value = str(cell.value) if cell.value is not None else ""
+                    # If it's a formula, append formula text as well for more context
+                    if cell.data_type == 'f': # 'f' means formula
+                        cell_value += f" (Formula: {cell.value})"
+                    row_values.append(cell_value)
+                full_text.append(", ".join(row_values))
+            full_text.append("\n") # Add a newline after each sheet for separation
+        print(f"DEBUG: Successfully extracted text from Excel file: {excel_path}")
+    except Exception as e:
+        print(f"Error extracting text from Excel {excel_path}: {e}")
+        full_text = [] # Return empty list on error
+    return "\n".join(full_text)
 
 def chunk_text(text: str, chunk_size: int = 500, chunk_overlap: int = 50) -> List[str]:
     chunks = []
@@ -418,34 +442,29 @@ async def chat_with_ai(message: Message, current_user: User = Depends(get_curren
     if not GEMINI_API_KEY:
         return AIMessage(response="عذراً، نظام الذكاء الاصطناعي غير جاهز (مفتاح API غير موجود).")
     
-    # Generate embedding for the user's query
     query_embedding = generate_embeddings([message.message])[0]
 
-    # Retrieve relevant document chunks based on query and user's role/permissions
     retrieved_chunks = get_similar_chunks(query_embedding, current_user.role, top_k=3)
     
     context = "\n".join(retrieved_chunks)
 
     if not context:
-        # Prompt without specific language instruction
         prompt = (
             f"You are an internal AI assistant for the organization. Answer the following question in a professional and institutional tone. "
             f"If the question is not related to internal organizational data, state that you do not have information about it. "
-            f"Respond in the same language as the user's input, if possible." # Added instruction for language
+            f"Respond in the same language as the user's input, if possible."
             f"\n\nQuestion: {message.message}"
         )
         print("DEBUG: No relevant context found. Sending query to LLM without specific context.")
     else:
-        # Prompt with context, without specific language instruction
         prompt = (
             f"You are an internal AI assistant for the organization. Use the following contextual information to answer the question. "
             f"Respond in a professional and institutional tone. If the information is insufficient to answer, clearly state that. "
-            f"Do not invent information not present in the context. Respond in the same language as the user's input." # Added instruction for language
+            f"Do not invent information not present in the context. Respond in the same language as the user's input."
             f"\n\nContextual Information:\n{context}\n\nQuestion: {message.message}"
         )
         print(f"DEBUG: Relevant context found. Context length: {len(context)} chars. Chunks used: {len(retrieved_chunks)}")
 
-    # Call Gemini API with the enriched prompt
     ai_response_text = call_gemini_api(prompt)
 
     return AIMessage(response=ai_response_text)
@@ -482,10 +501,14 @@ async def upload_document(
         conn.close()
 
         extracted_text = ""
-        if file.filename.lower().endswith('.pdf'):
+        file_extension = file.filename.lower().split('.')[-1]
+
+        if file_extension == 'pdf':
             extracted_text = extract_text_from_pdf(file_location)
-        elif file.filename.lower().endswith('.txt'):
+        elif file_extension == 'txt':
             extracted_text = extract_text_from_txt(file_location)
+        elif file_extension in ['xls', 'xlsx']: # Added support for Excel
+            extracted_text = extract_text_from_excel(file_location)
         else:
             print(f"Warning: Unsupported file type for text extraction: {file.filename}. Skipping text processing.")
             return UploadStatus(
